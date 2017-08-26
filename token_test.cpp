@@ -28,11 +28,11 @@ static int gettok(){
 
   // Skip any whitespace.
   while (isspace(LastChar))
-    LastChar = getchar();
+    LastChar = getwchar();
 
   if (isalpha(LastChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
     IdentifierStr = LastChar;
-    while (isalnum((LastChar = getchar())))
+    while (isalnum((LastChar = getwchar())))
       IdentifierStr += LastChar;
 
     if (IdentifierStr == "def")
@@ -46,7 +46,7 @@ static int gettok(){
     string NumStr;
     do{
       NumStr += LastChar;
-      LastChar = getchar();
+      LastChar = getwchar();
     } while (isdigit(LastChar) || LastChar == '.');
 
     NumVal = strtod(NumStr.c_str(), 0);
@@ -56,7 +56,7 @@ static int gettok(){
   if (LastChar == '#') {
     // Comment until end of line
     do
-      LastChar = getchar();
+      LastChar = getwchar();
     while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
 
     if (LastChar != EOF)
@@ -69,7 +69,7 @@ static int gettok(){
 
   // Otherwise, just return the character as its ascii value.
   int ThisChar = LastChar;
-  LastChar = getchar();
+  LastChar = getwchar();
   return ThisChar;
 }
 
@@ -142,9 +142,25 @@ public:
 };
 
 //------------------------------------------------------------------//
-// 2.3. PArser Basic
+// 2.3. Parser Basic
 
-//auto LHS = llvm::make_unique<VariableExprAST>("x");
+/// CurTok/getNextToken - Provide a simple token buffer.  CurTok is the current
+/// token the parser is looking at.  getNextToken reads another token from the
+/// lexer and updates CurTok with its results.
+static int CurTok;
+static int getNextToken() {
+  return CurTok = gettok();
+}
+
+/// LogError* - These are little helper functions for error handling.
+std::unique_ptr<ExprAST> LogError(const char *Str) {
+  fprintf(stderr, "LogError: %s\n", Str);
+  return nullptr;
+}
+std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
+  LogError(Str);
+  return nullptr;
+}
 
 int main(){
   cout << "Lexer Test";
