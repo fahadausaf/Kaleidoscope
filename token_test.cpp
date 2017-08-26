@@ -1,4 +1,7 @@
 #include <iostream>
+#include <memory>
+#include <vector>
+
 using namespace std;
 
 // The Lexer returns tokens [0-255] if it is an unknown character, otherwise
@@ -94,6 +97,49 @@ public:
   VariableExprAST(const string &Name) : Name(Name) {}
 };
 
+/// BinaryExprAST - Expression class for a binary operator.
+class BinaryExprAST : public ExprAST {
+  char Op;
+  unique_ptr<ExprAST> LHS, RHS;
+
+public:
+  BinaryExprAST(char op, unique_ptr<ExprAST> LHS, unique_ptr<ExprAST> RHS)
+    : Op(op), LHS(move(LHS)), RHS(move(RHS)){}
+};
+
+/// CallExprAST - Expression class for function calls.
+class CallExprAST : public ExprAST {
+  string Callee;
+  vector<std::unique_ptr<ExprAST>> Args;
+
+public:
+  CallExprAST(const string &Callee, vector<std::unique_ptr<ExprAST>> Args)
+    : Callee(Callee), Args(move(Args)) {}
+};
+
+/// PrototypeAST - This class represents the "prototype" for a function,
+/// which captures its name, and its argument names (thus implicitly the number
+/// of arguments the function takes).
+class PrototypeAST {
+  string Name;
+  vector<string> Args;
+
+public:
+  PrototypeAST(const string &name, vector<string> Args)
+    : Name(name), Args(move(Args)) {}
+
+  const string &getName() const { return Name; }
+};
+
+/// FunctionAST - This class represents a function definition itself.
+class FunctionAST {
+  unique_ptr<PrototypeAST> Proto;
+  unique_ptr<ExprAST> Body;
+
+public:
+  FunctionAST(unique_ptr<PrototypeAST> Proto, unique_ptr<ExprAST> Body)
+    : Proto(move(Proto)), Body(move(Body)) {}
+};
 
 
 
