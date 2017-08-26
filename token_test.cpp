@@ -86,6 +86,17 @@ public:
   NumberExprAST(double Val) : Val(Val) {}
 };
 
+/// VariableExprAST - Expression class for referencing a variable, like "a".
+class VariableExprAST : public ExprAST {
+  string Name;
+
+public:
+  VariableExprAST(const string &Name) : Name(Name) {}
+};
+
+
+
+
 int main(){
   cout << "Lexer Test";
 
