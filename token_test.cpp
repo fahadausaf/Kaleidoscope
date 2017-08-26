@@ -8,7 +8,7 @@ enum Token{
   tok_eof = -1,
 
   // commands
-  tok_def = -2
+  tok_def = -2,
   tok_extern = -3,
 
 // primary
@@ -27,7 +27,7 @@ static int gettok(){
   while (isspace(LastChar))
     LastChar = getchar();
 
-  if (isalpha(LastChar)) {
+  if (isalpha(LastChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
     IdentifierStr = LastChar;
     while (isalnum((LastChar = getchar())))
       IdentifierStr += LastChar;
@@ -38,6 +38,36 @@ static int gettok(){
       return tok_extern;
     return tok_identifier;
   }
+
+  if (isdigit(LastChar) || LastChar == '.') { // Number: [0-9.]+
+    string NumStr;
+    do{
+      NumStr += LastChar;
+      LastChar = getchar();
+    } while (isdigit(LastChar) || LastChar == '.');
+
+    NumVal = strtod(NumStr.c_str(), 0);
+    return tok_number;
+  }
+
+  if (LastChar == '#') {
+    // Comment until end of line
+    do
+      LastChar = getchar();
+    while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
+
+    if (LastChar != EOF)
+      return gettok();
+  }
+
+  // Check for end of file. Don't eat the EOF.
+  if (LastChar == EOF)
+    return tok_eof;
+
+  // Otherwise, just return the character as its ascii value.
+  int ThisChar = LastChar;
+  LastChar = getchar();
+  return ThisChar;
 }
 
 int main(){
