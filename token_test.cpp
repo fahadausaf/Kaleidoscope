@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include "llvm/ADT/STLExtras.h"
 
 using namespace std;
 
@@ -161,6 +162,82 @@ std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
   LogError(Str);
   return nullptr;
 }
+
+//------------------------------------------------------------------//
+// 2.4. Basic Expression Parsing
+
+/// numberexpr ::= number
+static std::unique_ptr<ExprAST> ParseNumberExpr() {
+  auto Result = llvm::make_unique<NumberExprAST>(NumVal);
+  getNextToken(); // consume the number
+  return std::move(Result);
+}
+
+/// parenexpr ::= '(' expression ')'
+static std::unique_ptr<ExprAST> ParseParenExpr(){
+  getNextToken(); // eat (.
+  auto V = ParseExpression();
+  if (!V)
+    return nullptr;
+
+  if (CurTok != ')')
+    return Logerror("expected ')'");
+  getNextToken(); // eat ).
+}
+
+/// identifierexpr
+///   ::= identifier
+///   ::= identifier '(' expression* ')'
+static std::unique_ptr<ExprAST> ParseIdentifierExpr(){
+  std::string IdName = IdentifierStr;
+
+  getNextToken();   // eat identifier.
+
+  if (CurTok != ')')
+    return llvm::unique_ptr<ExprAST>(IdName);
+
+  // Call.
+  getNextToken(); // eat (
+  std::vector<std::unique_ptr<ExprAST>> Args;
+  if (CurTok != ')'){
+    while (1){
+      if(auto Arg = ParseExpression())
+        Args.push_back(std::move(Arg));
+      else
+        return nullptr;
+
+      if (CurTok == ')')
+        break;
+
+      if (CurTok != ',')
+        return LogError("Expected ')' or ',' in argument list");
+      getNextToken();
+    }
+  }
+
+  // Eat the ')'.
+  getNextToken();
+
+  return llvm::make_unique<CallExprAST>(IdName, std::move(Args));
+}
+
+/// primary
+///   ::= identifierexpr
+///   ::= numberexpr
+///   ::= parenexpr
+static std::unique_ptr<ExprAST> ParsePrimary() {
+  switch (CurTok) {
+  default:
+    return LogError("unknown token when expecting an expression");
+  case tok_identifier:
+    return ParseIdentifierExpr();
+  case tok_number:
+    return ParseNumberExpr();
+  case '(':
+    return ParseParenExpr();
+  }
+}
+
 
 int main(){
   cout << "Lexer Test";
