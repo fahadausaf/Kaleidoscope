@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 #include "llvm/ADT/STLExtras.h"
+#include <map>
 
 using namespace std;
 
@@ -196,9 +197,9 @@ static std::unique_ptr<ExprAST> ParseParenExpr(){
     return nullptr;
 
   if (CurTok != ')')
-    return Logerror("expected ')'");
+    return LogError("expected ')'");
   getNextToken(); // eat ).
-  return V
+  return V;
 }
 
 /// identifierexpr
