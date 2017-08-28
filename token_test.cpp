@@ -238,9 +238,45 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
   }
 }
 
+//--------------------------------------------------------------//
+// 2.5. Binary Expression Parsing
+
+/// BinopPrecedence - This holds the precedence for each binary operator that is
+/// defined.
+static std::map<char, int> BinopPrecedence;
+
+/// GetTokPrecedence - Get the precedence of the pending binary operator token.
+static int GetTokPrecedence() {
+  if (!isascii(CurTok))
+    return -1;
+
+  // Make sure it's a declared binop.
+  int TokPrec = BinopPrecedence[CurTok];
+  if (TokPrec <= 0) return -1;
+  return TokPrec;
+}
+
+/// expression
+///   ::= primary binoprhs
+///
+static std::unique_ptr<ExprAST> ParseExpression() {
+  auto LHS = ParsePrimary();
+  if (!LHS)
+    return nullptr;
+
+  return ParseBinOpRHS(0, std::move(LHS));
+}
+
 
 int main(){
   cout << "Lexer Test";
+
+  // Install standard binary operators.
+  // 1 is lowest precedence.
+  BinopPrecedence['<'] = 10;
+  BinopPrecedence['+'] = 20;
+  BinopPrecedence['-'] = 20;
+  BinopPrecedence['*'] = 40;  // highest.
 
   return 0;
 }
