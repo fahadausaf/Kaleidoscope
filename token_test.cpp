@@ -20,8 +20,8 @@ enum Token{
   tok_number = -5,
 };
 
-static string IdentifierStr;
-static double NumVal;
+static std::string IdentifierStr; // Filled in if tok_identifier
+static double NumVal;             // Filled in if tok_number
 
 /// gettok - Return the next token from standard input.
 static int gettok(){
@@ -104,8 +104,9 @@ class BinaryExprAST : public ExprAST {
   unique_ptr<ExprAST> LHS, RHS;
 
 public:
-  BinaryExprAST(char op, unique_ptr<ExprAST> LHS, unique_ptr<ExprAST> RHS)
-    : Op(op), LHS(move(LHS)), RHS(move(RHS)){}
+  BinaryExprAST(char op, std::unique_ptr<ExprAST> LHS,
+    std::unique_ptr<ExprAST> RHS)
+    : Op(op), LHS(move(LHS)), RHS(move(RHS)) {}
 };
 
 /// CallExprAST - Expression class for function calls.
@@ -134,8 +135,8 @@ public:
 
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
-  unique_ptr<PrototypeAST> Proto;
-  unique_ptr<ExprAST> Body;
+  std::unique_ptr<PrototypeAST> Proto;
+  std::unique_ptr<ExprAST> Body;
 
 public:
   FunctionAST(unique_ptr<PrototypeAST> Proto, unique_ptr<ExprAST> Body)
@@ -153,6 +154,21 @@ static int getNextToken() {
   return CurTok = gettok();
 }
 
+/// BinopPrecedence - This holds the precedence for each binary operator that is
+/// defined.
+static std::map<char, int> BinopPrecedence;
+
+/// GetTokPrecedence - Get the precedence of the pending binary operator token.
+static int GetTokPrecedence() {
+  if (!isascii(CurTok))
+    return -1;
+
+  // Make sure it's a declared binop.
+  int TokPrec = BinopPrecedence[CurTok];
+  if (TokPrec <= 0) return -1;
+  return TokPrec;
+}
+
 /// LogError* - These are little helper functions for error handling.
 std::unique_ptr<ExprAST> LogError(const char *Str) {
   fprintf(stderr, "LogError: %s\n", Str);
@@ -163,8 +179,7 @@ std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
   return nullptr;
 }
 
-//------------------------------------------------------------------//
-// 2.4. Basic Expression Parsing
+static std::unique_ptr<ExprAST> ParseExpression();
 
 /// numberexpr ::= number
 static std::unique_ptr<ExprAST> ParseNumberExpr() {
@@ -183,6 +198,7 @@ static std::unique_ptr<ExprAST> ParseParenExpr(){
   if (CurTok != ')')
     return Logerror("expected ')'");
   getNextToken(); // eat ).
+  return V
 }
 
 /// identifierexpr
@@ -193,15 +209,15 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(){
 
   getNextToken();   // eat identifier.
 
-  if (CurTok != ')')
-    return llvm::unique_ptr<ExprAST>(IdName);
+  if (CurTok != '(') // Simple variable ref.
+    return llvm::make_unique<VariableExprAST>(IdName);
 
   // Call.
   getNextToken(); // eat (
   std::vector<std::unique_ptr<ExprAST>> Args;
-  if (CurTok != ')'){
-    while (1){
-      if(auto Arg = ParseExpression())
+  if (CurTok != ')') {
+    while (true) {
+      if (auto Arg = ParseExpression())
         Args.push_back(std::move(Arg));
       else
         return nullptr;
@@ -238,22 +254,41 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
   }
 }
 
-//--------------------------------------------------------------//
-// 2.5. Binary Expression Parsing
+/// binoprhs
+///   ::= ('+' primary)*
+static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
+                                              std::unique_ptr<ExprAST> LHS) {
+  // If this is a binop, find its precedence.
+  while (true) {
+    int TokPrec = GetTokPrecedence();
 
-/// BinopPrecedence - This holds the precedence for each binary operator that is
-/// defined.
-static std::map<char, int> BinopPrecedence;
+    // If this is a binop that binds at least as tightly as the current binop,
+    // consume it, otherwise we are done.
+    if (TokPrec < ExprPrec)
+      return LHS;
 
-/// GetTokPrecedence - Get the precedence of the pending binary operator token.
-static int GetTokPrecedence() {
-  if (!isascii(CurTok))
-    return -1;
+    // Okay, we know this is a binop.
+    int BinOp = CurTok;
+    getNextToken(); // eat binop
 
-  // Make sure it's a declared binop.
-  int TokPrec = BinopPrecedence[CurTok];
-  if (TokPrec <= 0) return -1;
-  return TokPrec;
+    // Parse the primary expression after the binary operator.
+    auto RHS = ParsePrimary();
+    if (!RHS)
+      return nullptr;
+
+    // If BinOp binds less tightly with RHS than the operator after RHS, let
+    // the pending operator take RHS as its LHS.
+    int NextPrec = GetTokPrecedence();
+    if (TokPrec < NextPrec) {
+      RHS = ParseBinOpRHS(TokPrec + 1, std::move(RHS));
+      if (!RHS)
+        return nullptr;
+    }
+
+    // Merge LHS/RHS.
+    LHS = llvm::make_unique<BinaryExprAST>(BinOp, std::move(LHS),
+                                           std::move(RHS));
+  }
 }
 
 /// expression
