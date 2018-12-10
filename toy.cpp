@@ -26,3 +26,15 @@ enum Token {
   tok_identifier = -4,
   tok_number = -5
 };
+
+static std::string IdentifierStr; // Filled in if tok_identifier
+static double NumVal;             // Filled in if tok_number
+
+/// gettok - Return the next token from standard input.
+static int gettok() {
+  static int LastChar = ' ';
+
+  // Skip any whitespace.
+  while (isspace(LastChar))
+    LastChar = getchar();
+}
